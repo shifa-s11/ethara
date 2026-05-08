@@ -1,0 +1,114 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ownedMissions    Mission[]       @relation("MissionOwner")
+  memberOf         MissionMember[]
+  assignedOps      Operation[]     @relation("OperationAssignee")
+  createdOps       Operation[]     @relation("OperationCreator")
+  comments         Comment[]
+  activityLogs     ActivityLog[]
+}
+
+model Mission {
+  id          String        @id @default(cuid())
+  name        String
+  codename    String        @unique
+  description String?
+  status      String        @default("PLANNING") // PLANNING, ACTIVE, ON_HOLD, COMPLETED, ABORTED
+  priority    String        @default("MEDIUM")   // LOW, MEDIUM, HIGH, CRITICAL
+  launchDate  DateTime?
+  endDate     DateTime?
+  coverColor  String        @default("#6366f1")
+  ownerId     String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  owner       User          @relation("MissionOwner", fields: [ownerId], references: [id])
+  members     MissionMember[]
+  operations  Operation[]
+  activityLogs ActivityLog[]
+}
+
+model MissionMember {
+  id        String   @id @default(cuid())
+  missionId String
+  userId    String
+  role      String   @default("OPERATOR") // DIRECTOR, OPERATOR, OBSERVER
+  joinedAt  DateTime @default(now())
+
+  mission   Mission  @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([missionId, userId])
+}
+
+model Operation {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    @default("QUEUED")   // QUEUED, IN_PROGRESS, REVIEW, COMPLETED, BLOCKED
+  priority    String    @default("MEDIUM")   // LOW, MEDIUM, HIGH, CRITICAL
+  type        String    @default("GENERAL")  // GENERAL, RESEARCH, ENGINEERING, COMMS, MEDICAL
+  dueDate     DateTime?
+  missionId   String
+  assigneeId  String?
+  creatorId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  mission     Mission   @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  assignee    User?     @relation("OperationAssignee", fields: [assigneeId], references: [id])
+  creator     User      @relation("OperationCreator", fields: [creatorId], references: [id])
+  comments    Comment[]
+}
+
+model Comment {
+  id          String    @id @default(cuid())
+  content     String
+  operationId String
+  authorId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  operation   Operation @relation(fields: [operationId], references: [id], onDelete: Cascade)
+  author      User      @relation(fields: [authorId], references: [id])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String
+  details   String?
+  userId    String
+  missionId String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  mission   Mission? @relation(fields: [missionId], references: [id])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
